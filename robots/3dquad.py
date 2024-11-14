@@ -34,29 +34,53 @@ class Quad3D:
       
         # for exp (CBF for unicycle)
         self.m = 1
+        self.gravity = 9.8
 
     def f(self, X, casadi=False):
         if casadi:
             return ca.vertcat([
-                0, 
-                0, 
-                0
+                X[3],
+                X[4],
+                X[5],
+                0,
+                0,
+                self.gravity,
+                0,
+                0,
+                0,
             ])
         else:
-            return np.array([0,0,0]).reshape(-1,1)
+            return np.array([
+                X[3],
+                X[4],
+                X[5],
+                0,
+                0,
+                self.gravity,
+                0,
+                0,
+                0,
+            ]).reshape(-1,1)
     
     def g(self, X, casadi=False):
         if casadi:
-            g = ca.SX.zeros(3, 2)
-            g[0, 0] = ca.cos(X[2,0])
-            g[1, 0] = ca.sin(X[2,0])
-            g[2, 1] = 1
+            g = ca.SX.zeros(9, 4)
+            g[4, 1] = -ca.sin(X[7]) / self.m
+            g[5, 1] = ca.cos(X[7]) * ca.sin(X[6]) / self.m
+            g[6, 1] = -ca.cos(X[7]) * ca.cos(X[6]) / self.m
+            g[6, 2] = 1
+            g[7, 3] = 1
+            g[8, 4] = 1
             return g
         else:
-            return np.array([ [ np.cos(X[2,0]), 0],
-                            [ np.sin(X[2,0]), 0],
-                            [0, 1] ]) 
-         
+            g = np.zeros(9, 4)
+            g[4, 1] = -np.sin(X[7]) / self.m
+            g[5, 1] = np.cos(X[7]) * np.sin(6) / self.m
+            g[6, 1] = -np.cos(X[7]) * np.cos(6) / self.m
+            g[6, 2] = 1
+            g[7, 3] = 1
+            g[8, 4] = 1
+            return g
     def step(self, X, U): 
         X = X + ( self.f(X) + self.g(X) @ U )*self.dt
         X[2,0] = angle_normalize(X[2,0])
@@ -80,12 +104,22 @@ class Quad3D:
 
         return np.array([v, omega]).reshape(-1,1)
     
-    def stop(self, X):
-        return np.array([0,0]).reshape(-1,1)
+    def stop(self, X, k_stop = 1):
+        u_stop = np.zeros(4,1)
+
+        v_curr = X[3:6]
+        F_des = v_curr * k_stop + np.array([0, 0, 9.8 * self.m]) #proportional control & gravity compensation
+        u_stop[0] = np.linalg.norm(F_des)
+        a_des = F_des / u_stop[0]
+        theta_des = np.asin(-1 * a_des[0])
+        phi_des = np.asin(a_des[1] / np.sin(theta_des))
+        u_stop[1] = (phi_des - X[6]) * k_stop
+        u_stop[2] = (theta_des - X[7]) * k_stop
+        u_stop[3] = -1 * X[8] * k_stop
+        return u_stop
     
-    def has_stopped(self, X):
-        # unicycle can always stop immediately
-        return True
+    def has_stopped(self, X, tol = 0.05):
+        return np.linalg.norm(X[3:6]) < tol
 
     def rotate_to(self, X, theta_des, k_omega = 2.0):
         error_theta = angle_normalize( theta_des - X[2,0] )
