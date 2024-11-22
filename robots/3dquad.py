@@ -86,23 +86,24 @@ class Quad3D:
         X[2,0] = angle_normalize(X[2,0])
         return X
 
-    def nominal_input(self, X, G, d_min = 0.05, k_omega = 2.0, k_v = 1.0):
+    def nominal_input(self, X, goal, d_min = 0.05, k_ang = 2.0, k_v = 1.0):
         '''
         nominal input for CBF-QP
         '''
         G = np.copy(G.reshape(-1,1)) # goal state
+        
+        u_nom = np.zeros(4,1)
 
-        distance = max(np.linalg.norm( X[0:2,0]-G[0:2,0] ) - d_min, 0.05)
-        theta_d = np.arctan2(G[1,0]-X[1,0],G[0,0]-X[0,0])
-        error_theta = angle_normalize( theta_d - X[2,0] )
-
-        omega = k_omega * error_theta   
-        if abs(error_theta) > np.deg2rad(90):
-            v = 0.0
-        else:
-            v = k_v*( distance )*np.cos( error_theta )
-
-        return np.array([v, omega]).reshape(-1,1)
+        x_err = X[0:3] - goal[0:3]
+        F_des = x_err * k_v + np.array([0, 0, 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
+        u_nom[0] = np.linalg.norm(F_des)
+        a_des = F_des / u_nom[0]
+        theta_des = np.asin(-1 * a_des[0])
+        phi_des = np.asin(a_des[1] / np.sin(theta_des))
+        u_nom[1] = (phi_des - X[6]) * k_ang
+        u_nom[2] = (theta_des - X[7]) * k_ang
+        u_nom[3] = -1 * X[8] * k_ang
+        return u_nom
     
     def stop(self, X, k_stop = 1):
         u_stop = np.zeros(4,1)
