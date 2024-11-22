@@ -108,7 +108,7 @@ class Quad3D:
         u_stop = np.zeros(4,1)
 
         v_curr = X[3:6]
-        F_des = v_curr * k_stop + np.array([0, 0, 9.8 * self.m]) #proportional control & gravity compensation
+        F_des = v_curr * k_stop + np.array([0, 0, 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
         u_stop[0] = np.linalg.norm(F_des)
         a_des = F_des / u_stop[0]
         theta_des = np.asin(-1 * a_des[0])
@@ -121,25 +121,22 @@ class Quad3D:
     def has_stopped(self, X, tol = 0.05):
         return np.linalg.norm(X[3:6]) < tol
 
-    def rotate_to(self, X, theta_des, k_omega = 2.0):
-        error_theta = angle_normalize( theta_des - X[2,0] )
-        omega = k_omega * error_theta
-        return np.array([0.0, omega]).reshape(-1,1)
-    
-    def sigma(self,s):
-        #print("s", s)
-        return self.k2 * (np.exp(self.k1-s)-1)/(np.exp(self.k1-s)+1)
-    
-    def sigma_der(self,s):
-        return - self.k2 * np.exp(self.k1-s)/( 1+np.exp( self.k1-s ) ) * ( 1 - self.sigma(s)/self.k2 )
+    def rotate_to(self, X, ang_des, k_omega = 2.0):
+        u = np.zeros(4,1)
+        u[1] = (ang_des[0] - X[6]) * k_omega
+        u[2] = (ang_des[1] - X[7]) * k_omega
+        u[3] = (ang_des[2] - X[8]) * k_omega
+        return u
     
     def agent_barrier(self, X, obs, robot_radius, beta=1.01):
-        obsX = obs[0:2]
-        d_min = obs[2][0] + robot_radius # obs radius + robot radius
+        obsX = obs[0:3]
+        d_min = obs[3][0] + robot_radius # obs radius + robot radius
 
-        theta = X[2,0]
+        phi = X[6,0]
+        theta = X[7,0]
+        psi = X[8,0]
 
-        h = np.linalg.norm( X[0:2] - obsX[0:2] )**2 - beta*d_min**2   
+        h = np.linalg.norm( X[0:3] - obsX )**2 - beta*d_min**2   
         s = ( X[0:2] - obsX[0:2]).T @ np.array( [np.cos(theta),np.sin(theta)] ).reshape(-1,1)
         h = h - self.sigma(s)
         
@@ -157,19 +154,23 @@ class Quad3D:
         '''Discrete Time High Order CBF'''
         # Dynamics equations for the next states
         x_k1 = self.step(x_k, u_k)
+        x_k2 = self.step(x_k1, u_k)
 
         def h(x, obs, robot_radius, beta = 1.01):
             '''Computes CBF h(x) = ||x-x_obs||^2 - beta*d_min^2'''
             x_obs = obs[0]
             y_obs = obs[1]
-            r_obs = obs[2]
+            z_obs = obs[2]
+            r_obs = obs[3]
             d_min = robot_radius + r_obs
 
-            h = (x[0, 0] - x_obs)**2 + (x[1, 0] - y_obs)**2 - beta*d_min**2
+            h = (x[0, 0] - x_obs)**2 + (x[1, 0] - y_obs)**2 + (x[2, 0] - z_obs)**2 - beta*d_min**2
             return h
 
+        h_k2 = h(x_k2, obs, robot_radius, beta)
         h_k1 = h(x_k1, obs, robot_radius, beta)
         h_k = h(x_k, obs, robot_radius, beta)
 
         d_h = h_k1 - h_k
-        return h_k, d_h
+        dd_h = h_k2 - 2 * h_k1 + h_k
+        return h_k, d_h, dd_h
