@@ -83,7 +83,7 @@ class Quad3D:
             g[6, 1] = 1
             g[7, 2] = 1
             g[8, 3] = 1
-            print("g_casadi")
+            print("g_ca")
             print(g)
             return g
         else:
@@ -98,9 +98,6 @@ class Quad3D:
             print(g)
             return g
     def step(self, X, U): 
-        print("X")
-        print(X)
-        print(self.g(X))
         X = X + ( self.f(X) + self.g(X) @ U )*self.dt
         X[2,0] = angle_normalize(X[2,0])
         return X
@@ -117,13 +114,13 @@ class Quad3D:
         
         
         u_nom = np.zeros([4,1])
-
         x_err = X[0:3] - np.atleast_2d(goal[0:3]).T
         F_des = x_err * k_v + np.array([0, 0, 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
         u_nom[0] = min(np.linalg.norm(F_des), f_max)
         a_des = F_des / u_nom[0]
         theta_des = np.arcsin(-1 * a_des[0])
-        phi_des = np.arcsin(a_des[1] / np.sin(theta_des))
+        print(theta_des)
+        phi_des = np.pi/2 - np.arccos(np.sin(theta_des) / a_des[1])
         u_nom[1] = min((phi_des - X[6]) * k_ang, phi_dot_max)
         u_nom[2] = min((theta_des - X[7]) * k_ang, theta_dot_max)
         u_nom[3] = min(-1 * X[8] * k_ang, psi_dot_max)
