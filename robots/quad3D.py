@@ -62,7 +62,7 @@ class Quad3D:
                 0,
             )
         else:
-            return np.array([
+            return np.vstack([
                 X[3],
                 X[4],
                 X[5],
