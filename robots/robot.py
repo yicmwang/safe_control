@@ -65,6 +65,12 @@ class BaseRobot:
             # X0: [x, y, vx, vy, theta]
             self.set_orientation(self.X[4, 0])
             self.X = self.X[0:4]  # Remove the yaw angle from the state
+        elif self.robot_spec['model'] == 'Quad3D':
+            try:
+                from quad3D import Quad3D
+            except ImportError:
+                from robots.quad3D import Quad3D
+            self.robot = Quad3D(dt, robot_spec)
         else:
             raise ValueError("Invalid robot model")
 

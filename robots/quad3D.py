@@ -31,7 +31,6 @@ class Quad3D:
         '''
         self.dt = dt
         self.robot_spec = robot_spec # not used in this model
-        self.df_dx = np.vstack([np.hstack([np.zeros(3), np.eye(3), np.zeros(3)]), np.zeros([6,9])])
       
         # for exp (CBF for unicycle)
         self.m = 1
