@@ -75,6 +75,21 @@ class LocalTrackingController:
             elif X0.shape[0] != 5:
                 raise ValueError(
                     "Invalid initial state dimension for DoubleIntegrator2D")
+        elif self.robot_spec['model'] == 'Quad3D':
+            if 'phi_dot_max' not in self.robot_spec:
+                self.robot_spec['phi_dot_max'] = 1.0
+            if 'theta_dot_max' not in self.robot_spec:
+                self.robot_spec['theta_dot_max'] = 1.0
+            if 'psi_dot_max' not in self.robot_spec:
+                self.robot_spec['psi_dot_max'] = 1.0
+            if 'f_max' not in self.robot_spec:
+                self.robot_spec['f_max'] = 10.0
+            if X0.shape[0] == 3:
+                X0 = np.array([X0[0], X0[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, X0[2]]).reshape(-1, 1)
+            elif X0.shape[0] == 2:
+                X0 = np.array([X0[0], X0[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape(-1, 1)
+            elif X0.shape[0] == 4:
+                X0 = np.array([X0[0], X0[1], X0[2], 0.0, 0.0, 0.0, 0.0, 0.0, X0[3]]).reshape(-1, 1)
             
         self.u_att = None
 
@@ -372,7 +387,7 @@ class LocalTrackingController:
             if self.robot_spec['model'] == 'DoubleIntegrator2D':
                 self.u_att = self.robot.rotate_to(goal_angle)
                 u_ref = self.robot.stop()
-            elif self.robot_spec['model'] in ['Unicycle2D', 'DynamicUnicycle2D']:
+            elif self.robot_spec['model'] in ['Unicycle2D', 'DynamicUnicycle2D', 'Quad3D']:
                 u_ref = self.robot.rotate_to(goal_angle)
         elif self.goal is None:
             u_ref = self.robot.stop()
@@ -488,14 +503,21 @@ class LocalTrackingController:
 def single_agent_main(control_type):
     dt = 0.05
 
+    # waypoints = [
+    #     [2, 2, math.pi/2],
+    #     [2, 12, 0],
+    #     [12, 12, 0],
+    #     [12, 2, 0]
+    # ]
     waypoints = [
-        [2, 2, math.pi/2],
-        [2, 12, 0],
-        [12, 12, 0],
-        [12, 2, 0]
+        [2, 2, 0, math.pi/2],
+        [2, 12, 0, 0],
+        [12, 12, 0, 0],
+        [12, 2, 0, 0]
     ]
     waypoints = np.array(waypoints, dtype=np.float64)
-    x_init = np.append(waypoints[0], 1.0)
+    # x_init = np.append(waypoints[0], 1.0)
+    x_init = np.array(waypoints[0])
     
     known_obs = np.array([[2.2, 5.0, 0.2], [3.0, 5.0, 0.2], [4.0, 9.0, 0.3], [1.5, 10.0, 0.5], [9.0, 11.0, 1.0], [7.0, 7.0, 3.0], [4.0, 3.5, 1.5],
                             [10.0, 7.3, 0.4],
@@ -505,10 +527,22 @@ def single_agent_main(control_type):
     ax, fig = plot_handler.plot_grid("") # you can set the title of the plot here
     env_handler = env.Env()
 
+    # robot_spec = {
+    #     'model': 'DynamicUnicycle2D',
+    #     'w_max': 0.5,
+    #     'a_max': 0.5,
+    #     'fov_angle': 70.0,
+    #     'cam_range': 3.0,
+    #     'radius': 0.25
+    # }
+
     robot_spec = {
-        'model': 'DynamicUnicycle2D',
-        'w_max': 0.5,
-        'a_max': 0.5,
+        'model': 'Quad3D',
+        'f_max': 20,
+        'phi_dot_max':5,
+        'theta_dot_max':5,
+        'psi_dot_max':5,
+        'mass': 0,
         'fov_angle': 70.0,
         'cam_range': 3.0,
         'radius': 0.25
@@ -605,8 +639,8 @@ if __name__ == "__main__":
     from utils import env
     import math
 
-    single_agent_main('mpc_cbf')
+    # single_agent_main('mpc_cbf')
     #multi_agent_main('mpc_cbf', save_animation=True)
-    #single_agent_main('cbf_qp')
+    single_agent_main('cbf_qp')
     # single_agent_main('optimal_decay_cbf_qp')
     #single_agent_main('optimal_decay_mpc_cbf')

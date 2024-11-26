@@ -16,6 +16,9 @@ class CBFQP:
         elif self.robot_spec['model'] == 'DoubleIntegrator2D':
             self.cbf_param['alpha1'] = 1.5
             self.cbf_param['alpha2'] = 1.5
+        elif self.robot_spec['model'] == 'Quad3D':
+            self.cbf_param['alpha1'] = 1.5
+            self.cbf_param['alpha2'] = 1.5
 
         self.setup_control_problem()
 
@@ -38,6 +41,17 @@ class CBFQP:
             constraints = [self.A1 @ self.u + self.b1 >= 0,
                            cp.abs(self.u[0]) <= self.robot_spec['a_max'],
                            cp.abs(self.u[1]) <= self.robot_spec['a_max']]
+        elif self.robot_spec['model'] == 'Quad3D':
+            self.u = cp.Variable((4, 1))
+            self.u_ref = cp.Parameter((4, 1), value=np.zeros((4, 1)))
+            self.A1 = cp.Parameter((1, 4), value=np.zeros((1, 4)))
+            self.b1 = cp.Parameter((1, 1), value=np.zeros((1, 1)))
+            objective = cp.Minimize(cp.sum_squares(self.u - self.u_ref))
+            constraints = [self.A1 @ self.u + self.b1 >= 0,
+                           cp.abs(self.u[0]) <= self.robot_spec['f_max'],
+                           cp.abs(self.u[1]) <= self.robot_spec['phi_dot_max'],
+                           cp.abs(self.u[2]) <= self.robot_spec['theta_dot_max'],
+                           cp.abs(self.u[3]) <= self.robot_spec['psi_dot_max']]
         self.cbf_controller = cp.Problem(objective, constraints)
 
     def solve_control_problem(self, robot_state, control_ref, nearest_obs):
@@ -50,7 +64,7 @@ class CBFQP:
             h, dh_dx = self.robot.agent_barrier(nearest_obs)
             self.A1.value[0,:] = dh_dx @ self.robot.g()
             self.b1.value[0,:] = dh_dx @ self.robot.f() + self.cbf_param['alpha'] * h
-        elif self.robot_spec['model'] in ['DynamicUnicycle2D', 'DoubleIntegrator2D']:
+        elif self.robot_spec['model'] in ['DynamicUnicycle2D', 'DoubleIntegrator2D', 'Quad3D']:
             h, h_dot, dh_dot_dx = self.robot.agent_barrier(nearest_obs)
             self.A1.value[0,:] = dh_dot_dx @ self.robot.g()
             self.b1.value[0,:] = dh_dot_dx @ self.robot.f() + (self.cbf_param['alpha1']+self.cbf_param['alpha2']) * h_dot + self.cbf_param['alpha1']*self.cbf_param['alpha2']*h

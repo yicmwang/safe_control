@@ -30,10 +30,22 @@ class Quad3D:
             relative degree: 2
         '''
         self.dt = dt
-        self.robot_spec = robot_spec # not used in this model
+        self.robot_spec = robot_spec
+        if 'phi_dot_max' not in self.robot_spec:
+            self.robot_spec['phi_dot_max'] = 1.0
+        if 'theta_dot_max' not in self.robot_spec:
+            self.robot_spec['theta_dot_max'] = 1.0
+        if 'psi_dot_max' not in self.robot_spec:
+            self.robot_spec['psi_dot_max'] = 1.0
+        if 'f_max' not in self.robot_spec:
+            self.robot_spec['f_max'] = 10.0
+        
+        if 'mass' not in self.robot_spec:
+            self.robot_spec['mass'] = 1.0
+        self.df_dx = np.vstack([np.hstack([np.zeros([3,3]), np.eye(3),np.zeros([3,3])]),np.zeros([6,9])])
       
-        # for exp (CBF for unicycle)
-        self.m = 1
+        # for exp
+        self.m = self.robot_spec['mass']
         self.gravity = 9.8
 
     def f(self, X, casadi=False):
@@ -86,23 +98,29 @@ class Quad3D:
         X[2,0] = angle_normalize(X[2,0])
         return X
 
-    def nominal_input(self, X, goal, d_min = 0.05, k_ang = 2.0, k_v = 1.0):
+    def nominal_input(self, X, goal, k_ang = 2.0, k_v = 1.0):
         '''
         nominal input for CBF-QP
         '''
-        G = np.copy(G.reshape(-1,1)) # goal state
+        G = np.copy(goal.reshape(-1,1)) # goal state
+        phi_dot_max = self.robot_spec['phi_dot_max']
+        theta_dot_max = self.robot_spec['theta_dot_max']
+        psi_dot_max = self.robot_spec['psi_dot_max']
+        f_max = self.robot_spec['f_max']
         
-        u_nom = np.zeros(4,1)
+        
+        u_nom = np.zeros([4,1])
 
         x_err = X[0:3] - goal[0:3]
         F_des = x_err * k_v + np.array([0, 0, 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
-        u_nom[0] = np.linalg.norm(F_des)
+        u_nom[0] = min(np.linalg.norm(F_des), f_max)
         a_des = F_des / u_nom[0]
-        theta_des = np.asin(-1 * a_des[0])
-        phi_des = np.asin(a_des[1] / np.sin(theta_des))
-        u_nom[1] = (phi_des - X[6]) * k_ang
-        u_nom[2] = (theta_des - X[7]) * k_ang
-        u_nom[3] = -1 * X[8] * k_ang
+        theta_des = np.arcsin(-1 * a_des[0])
+        phi_des = np.arcsin(a_des[1] / np.sin(theta_des))
+        print(a_des[0])
+        u_nom[1] = min((phi_des - X[6]) * k_ang, phi_dot_max)
+        u_nom[2] = min((theta_des - X[7]) * k_ang, theta_dot_max)
+        u_nom[3] = min(-1 * X[8] * k_ang, psi_dot_max)
         return u_nom
     
     def stop(self, X, k_stop = 1):
@@ -112,8 +130,8 @@ class Quad3D:
         F_des = v_curr * k_stop + np.array([0, 0, 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
         u_stop[0] = np.linalg.norm(F_des)
         a_des = F_des / u_stop[0]
-        theta_des = np.asin(-1 * a_des[0])
-        phi_des = np.asin(a_des[1] / np.sin(theta_des))
+        theta_des = np.arcsin(-1 * a_des[0])
+        phi_des = np.arcsin(a_des[1] / np.sin(theta_des))
         u_stop[1] = (phi_des - X[6]) * k_stop
         u_stop[2] = (theta_des - X[7]) * k_stop
         u_stop[3] = -1 * X[8] * k_stop
@@ -124,32 +142,27 @@ class Quad3D:
 
     def rotate_to(self, X, ang_des, k_omega = 2.0):
         u = np.zeros(4,1)
-        u[1] = (ang_des[0] - X[6]) * k_omega
-        u[2] = (ang_des[1] - X[7]) * k_omega
-        u[3] = (ang_des[2] - X[8]) * k_omega
+        u[0] = 9.8 * self.m
+        u[1] = (0 - X[6]) * k_omega
+        u[2] = (0 - X[7]) * k_omega
+        u[3] = (ang_des - X[8]) * k_omega
         return u
     
     def agent_barrier(self, X, obs, robot_radius, beta=1.01):
-        obsX = obs[0:3]
-        d_min = obs[3][0] + robot_radius # obs radius + robot radius
+        '''obs: [x, y, r]'''
+        '''obstacles are infinite cylinders at x and y'''
+        '''X : [x y z vx vy yz phi theta psi]'''
+        obsX = obs[0:2]
+        d_min = obs[2][0] + robot_radius  # obs radius + robot radius
 
-        phi = X[6,0]
-        theta = X[7,0]
-        psi = X[8,0]
+        h = np.linalg.norm(X[0:2] - obsX[0:2])**2 - beta*d_min**2
+        # Lgh is zero => relative degree is 2
+        h_dot = 2 * (X[0:2] - obsX[0:2]).T @ (self.f(X)[0:2])
 
-        h = np.linalg.norm( X[0:3] - obsX )**2 - beta*d_min**2   
-        s = ( X[0:2] - obsX[0:2]).T @ np.array( [np.cos(theta),np.sin(theta)] ).reshape(-1,1)
-        h = h - self.sigma(s)
-        
-        der_sigma = self.sigma_der(s)
-        # [dh/dx, dh/dy, dh/dtheta]^T
-        dh_dx = np.append( 
-                    2*( X[0:2] - obsX[0:2] ).T - der_sigma * ( np.array([ [np.cos(theta), np.sin(theta)] ]) ),
-                    - der_sigma * ( -np.sin(theta)*( X[0,0]-obsX[0,0] ) + np.cos(theta)*( X[1,0] - obsX[1,0] ) ),
-                     axis=1)
-        # print(h)
-        # print(dh_dx)
-        return h, dh_dx
+        dh_dot_dx = np.hstack([(2 * self.f(X)[0:2]).T, 0,
+                               2 * (X[0:2] - obsX[0:2]).T,
+                               np.zeros([1,4])])
+        return h, h_dot, dh_dot_dx
         
     def agent_barrier_dt(self, x_k, u_k, obs, robot_radius, beta = 1.01):
         '''Discrete Time High Order CBF'''
@@ -161,11 +174,10 @@ class Quad3D:
             '''Computes CBF h(x) = ||x-x_obs||^2 - beta*d_min^2'''
             x_obs = obs[0]
             y_obs = obs[1]
-            z_obs = obs[2]
-            r_obs = obs[3]
+            r_obs = obs[2]
             d_min = robot_radius + r_obs
 
-            h = (x[0, 0] - x_obs)**2 + (x[1, 0] - y_obs)**2 + (x[2, 0] - z_obs)**2 - beta*d_min**2
+            h = (x[0, 0] - x_obs)**2 + (x[1, 0] - y_obs)**2 - beta*d_min**2
             return h
 
         h_k2 = h(x_k2, obs, robot_radius, beta)

@@ -71,6 +71,7 @@ class BaseRobot:
             except ImportError:
                 from robots.quad3D import Quad3D
             self.robot = Quad3D(dt, robot_spec)
+            self.yaw = self.X[8, 0]
         else:
             raise ValueError("Invalid robot model")
 
@@ -142,6 +143,8 @@ class BaseRobot:
                 return self.U_att[0, 0]
             else:
                 return 0.0
+        elif self.robot_spec['model'] == 'Quad3D':
+            return self.U[3,0]
         else:
             raise NotImplementedError(
                 "get_yaw_rate is not implemented for this model")
@@ -171,6 +174,8 @@ class BaseRobot:
             return self.robot.nominal_input(self.X, goal, d_min, k_omega, k_a, k_v)
         elif self.robot_spec['model'] == 'DoubleIntegrator2D':
             return self.robot.nominal_input(self.X, goal, d_min, k_v, k_a)
+        elif self.robot_spec['model'] == 'Quad3D':
+            return self.robot.nominal_input(self.X, goal, k_a, k_v)
 
     def nominal_attitude_input(self, theta_des):
         if self.robot_spec['model'] == 'DoubleIntegrator2D':
@@ -206,6 +211,8 @@ class BaseRobot:
             self.yaw = self.robot.step_rotate(self.yaw, self.U_att)
         elif self.robot_spec['model'] in ['Unicycle2D', 'DynamicUnicycle2D']:
             self.yaw = self.X[2, 0]
+        elif self.robot_spec['model'] == 'Quad3D':
+            self.yaw = self.X[8,0]
         return self.X
 
     def render_plot(self):
@@ -308,6 +315,10 @@ class BaseRobot:
         elif self.robot_spec['model'] == 'DoubleIntegrator2D':
             vx = self.X[2, 0]
             vy = self.X[3, 0]
+            v = np.linalg.norm([vx, vy])
+        elif self.robot_spec['model'] == 'Quad3D':
+            vx = self.X[3,0]
+            vy = self.X[4,0]
             v = np.linalg.norm([vx, vy])
         yaw_rate = self.get_yaw_rate()
 
