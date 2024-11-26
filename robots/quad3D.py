@@ -83,6 +83,8 @@ class Quad3D:
             g[6, 1] = 1
             g[7, 2] = 1
             g[8, 3] = 1
+            print("g_casadi")
+            print(g)
             return g
         else:
             g = np.zeros([9, 4])
@@ -92,9 +94,12 @@ class Quad3D:
             g[6, 1] = 1
             g[7, 2] = 1
             g[8, 3] = 1
+            print("g_np")
+            print(g)
             return g
     def step(self, X, U): 
-        print(X[4])
+        print("X")
+        print(X)
         print(self.g(X))
         X = X + ( self.f(X) + self.g(X) @ U )*self.dt
         X[2,0] = angle_normalize(X[2,0])
