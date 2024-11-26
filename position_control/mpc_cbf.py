@@ -160,7 +160,8 @@ class MPCCBF:
             tvp_template = mpc.get_tvp_template()
 
             # Set goal
-            tvp_template['_tvp', :, 'goal'] = np.concatenate([self.goal, [0] * (self.n_states - 2)])
+            print(self.goal)
+            tvp_template['_tvp', :, 'goal'] = np.concatenate([self.goal, [0] * (self.n_states - self.goal.shape[0])])
 
             # Handle up to 5 obstacles (if fewer than 5, substitute dummy obstacles)
             if self.obs is None:

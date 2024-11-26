@@ -50,7 +50,7 @@ class Quad3D:
 
     def f(self, X, casadi=False):
         if casadi:
-            return ca.vertcat([
+            return ca.vertcat(
                 X[3],
                 X[4],
                 X[5],
@@ -60,7 +60,7 @@ class Quad3D:
                 0,
                 0,
                 0,
-            ])
+            )
         else:
             return np.array([
                 X[3],
@@ -77,23 +77,25 @@ class Quad3D:
     def g(self, X, casadi=False):
         if casadi:
             g = ca.SX.zeros(9, 4)
-            g[4, 1] = -ca.sin(X[7]) / self.m
-            g[5, 1] = ca.cos(X[7]) * ca.sin(X[6]) / self.m
-            g[6, 1] = -ca.cos(X[7]) * ca.cos(X[6]) / self.m
-            g[6, 2] = 1
-            g[7, 3] = 1
-            g[8, 4] = 1
+            g[3, 0] = -ca.sin(X[7]) / self.m
+            g[4, 0] = ca.cos(X[7]) * ca.sin(X[6]) / self.m
+            g[5, 0] = -ca.cos(X[7]) * ca.cos(X[6]) / self.m
+            g[6, 1] = 1
+            g[7, 2] = 1
+            g[8, 3] = 1
             return g
         else:
-            g = np.zeros(9, 4)
-            g[4, 1] = -np.sin(X[7]) / self.m
-            g[5, 1] = np.cos(X[7]) * np.sin(6) / self.m
-            g[6, 1] = -np.cos(X[7]) * np.cos(6) / self.m
-            g[6, 2] = 1
-            g[7, 3] = 1
-            g[8, 4] = 1
+            g = np.zeros([9, 4])
+            g[3, 0] = -np.sin(X[7]) / self.m
+            g[4, 0] = np.cos(X[7]) * np.sin(X[6]) / self.m
+            g[5, 0] = -np.cos(X[7]) * np.cos(X[6]) / self.m
+            g[6, 1] = 1
+            g[7, 2] = 1
+            g[8, 3] = 1
             return g
     def step(self, X, U): 
+        print(X[4])
+        print(self.g(X))
         X = X + ( self.f(X) + self.g(X) @ U )*self.dt
         X[2,0] = angle_normalize(X[2,0])
         return X
@@ -111,13 +113,12 @@ class Quad3D:
         
         u_nom = np.zeros([4,1])
 
-        x_err = X[0:3] - goal[0:3]
+        x_err = X[0:3] - np.atleast_2d(goal[0:3]).T
         F_des = x_err * k_v + np.array([0, 0, 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
         u_nom[0] = min(np.linalg.norm(F_des), f_max)
         a_des = F_des / u_nom[0]
         theta_des = np.arcsin(-1 * a_des[0])
         phi_des = np.arcsin(a_des[1] / np.sin(theta_des))
-        print(a_des[0])
         u_nom[1] = min((phi_des - X[6]) * k_ang, phi_dot_max)
         u_nom[2] = min((theta_des - X[7]) * k_ang, theta_dot_max)
         u_nom[3] = min(-1 * X[8] * k_ang, psi_dot_max)

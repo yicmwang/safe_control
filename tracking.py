@@ -187,8 +187,11 @@ class LocalTrackingController:
         if len(waypoints) < 2:
             return waypoints
 
-        robot_pos = self.robot.get_position()
-        aug_waypoints = np.vstack((robot_pos, waypoints[:, :2]))
+        robot_pos = np.hstack([self.robot.get_position(), self.robot.get_z()])
+        if self.robot_spec['model'] == 'Quad3D':
+            aug_waypoints = np.vstack((robot_pos, waypoints[:, :3]))
+        else:
+            aug_waypoints = np.vstack((robot_pos, waypoints[:, :2]))
 
         distances = np.linalg.norm(np.diff(aug_waypoints, axis=0), axis=1)
         mask = np.concatenate(([False], distances >= self.reached_threshold))
@@ -341,7 +344,11 @@ class LocalTrackingController:
                 return None
 
         # set goal to next waypoint's (x,y)
-        goal = np.array(self.waypoints[self.current_goal_index][0:2])
+        
+        if self.robot_spec['model'] == 'Quad3D':
+            goal = np.array(self.waypoints[self.current_goal_index][0:3])
+        else:
+            goal = np.array(self.waypoints[self.current_goal_index][0:2])
         return goal
 
     def draw_plot(self, pause=0.01, force_save=False):
@@ -542,7 +549,7 @@ def single_agent_main(control_type):
         'phi_dot_max':5,
         'theta_dot_max':5,
         'psi_dot_max':5,
-        'mass': 0,
+        'mass': 1.0,
         'fov_angle': 70.0,
         'cam_range': 3.0,
         'radius': 0.25
@@ -639,8 +646,8 @@ if __name__ == "__main__":
     from utils import env
     import math
 
-    # single_agent_main('mpc_cbf')
+    single_agent_main('mpc_cbf')
     #multi_agent_main('mpc_cbf', save_animation=True)
-    single_agent_main('cbf_qp')
+    # single_agent_main('cbf_qp')
     # single_agent_main('optimal_decay_cbf_qp')
     #single_agent_main('optimal_decay_mpc_cbf')

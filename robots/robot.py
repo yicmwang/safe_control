@@ -131,6 +131,12 @@ class BaseRobot:
 
     def get_position(self):
         return self.X[0:2].reshape(-1)
+    
+    def get_z(self):
+        if self.robot_spec['model'] == 'Quad3D':
+            return self.X[3]
+        else:
+            return
 
     def get_orientation(self):
         return self.yaw
@@ -462,7 +468,7 @@ class BaseRobot:
         robot_pos = self.get_position()
         robot_yaw = self.get_orientation()
 
-        to_point = point - robot_pos
+        to_point = point[0:2] - robot_pos
 
         angle_to_point = np.arctan2(to_point[1], to_point[0])
         angle_diff = abs(angle_normalize(angle_to_point - robot_yaw))
