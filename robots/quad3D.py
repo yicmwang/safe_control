@@ -49,8 +49,8 @@ class Quad3D:
 
     def f(self, X, casadi=False):
         if casadi:
-            print("X_ca")
-            print(X)
+            # print("X_ca")
+            # print(X)
             return ca.vertcat(
                 X[3],
                 X[4],
@@ -64,8 +64,8 @@ class Quad3D:
             )
         else:
 
-            # print("X_np")
-            # print(X)
+            # # print("X_np")
+            # # print(X)
             return np.vstack([
                 X[3],
                 X[4],
@@ -87,8 +87,8 @@ class Quad3D:
             g[6, 1] = 1
             g[7, 2] = 1
             g[8, 3] = 1
-            print("g_ca")
-            print(g)
+            # print("g_ca")
+            # print(g)
             return g
         else:
             g = np.zeros([9, 4])
@@ -98,8 +98,8 @@ class Quad3D:
             g[6, 1] = 1
             g[7, 2] = 1
             g[8, 3] = 1
-            print("g_np")
-            print(g)
+            # print("g_np")
+            # print(g)
             return g
     def step(self, X, U): 
         X = X + ( self.f(X) + self.g(X) @ U )*self.dt
