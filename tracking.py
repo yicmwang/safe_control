@@ -388,6 +388,8 @@ class LocalTrackingController:
             self.nearest_obs = None
 
         # 2. Compuite nominal control input, pre-defined in the robot class
+        print("state machine")
+        print(self.state_machine)
         if self.state_machine == 'rotate':
             goal_angle = np.arctan2(self.goal[1] - self.robot.X[1, 0],
                                     self.goal[0] - self.robot.X[0, 0])

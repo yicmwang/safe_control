@@ -50,6 +50,8 @@ class Quad3D:
 
     def f(self, X, casadi=False):
         if casadi:
+            print("X_ca")
+            print(X)
             return ca.vertcat(
                 X[3],
                 X[4],
@@ -62,6 +64,9 @@ class Quad3D:
                 0,
             )
         else:
+
+            print("X_np")
+            print(X)
             return np.vstack([
                 X[3],
                 X[4],
@@ -106,6 +111,8 @@ class Quad3D:
         '''
         nominal input for CBF-QP
         '''
+        print("Goal")
+        print(goal)
         G = np.copy(goal.reshape(-1,1)) # goal state
         phi_dot_max = self.robot_spec['phi_dot_max']
         theta_dot_max = self.robot_spec['theta_dot_max']
@@ -115,12 +122,14 @@ class Quad3D:
         
         u_nom = np.zeros([4,1])
         x_err = X[0:3] - np.atleast_2d(goal[0:3]).T
-        F_des = x_err * k_v + np.array([0, 0, 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
+        F_des = x_err * k_v + np.array([0, 0, - 9.8 * self.m]).reshape(-1,1) #proportional control & gravity compensation
         u_nom[0] = min(np.linalg.norm(F_des), f_max)
         a_des = F_des / u_nom[0]
         theta_des = np.arcsin(-1 * a_des[0])
-        print(theta_des)
-        phi_des = np.pi/2 - np.arccos(np.sin(theta_des) / a_des[1])
+        if np.abs(theta_des) < 0.01:
+            phi_des = np.arccos(a_des[1] / np.cos(theta_des))
+        else:
+            phi_des = np.arcsin(a_des[1] / np.sin(theta_des))
         u_nom[1] = min((phi_des - X[6]) * k_ang, phi_dot_max)
         u_nom[2] = min((theta_des - X[7]) * k_ang, theta_dot_max)
         u_nom[3] = min(-1 * X[8] * k_ang, psi_dot_max)
@@ -134,7 +143,10 @@ class Quad3D:
         u_stop[0] = np.linalg.norm(F_des)
         a_des = F_des / u_stop[0]
         theta_des = np.arcsin(-1 * a_des[0])
-        phi_des = np.arcsin(a_des[1] / np.sin(theta_des))
+        if np.abs(theta_des) < 0.01:
+            phi_des = np.arccos(a_des[1] / np.cos(theta_des))
+        else:
+            phi_des = np.arcsin(a_des[1] / np.sin(theta_des))
         u_stop[1] = (phi_des - X[6]) * k_stop
         u_stop[2] = (theta_des - X[7]) * k_stop
         u_stop[3] = -1 * X[8] * k_stop
