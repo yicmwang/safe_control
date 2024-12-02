@@ -136,7 +136,7 @@ class BaseRobot:
         if self.robot_spec['model'] == 'Quad3D':
             return self.X[3]
         else:
-            return
+            return 0
 
     def get_orientation(self):
         return self.yaw
@@ -173,7 +173,7 @@ class BaseRobot:
     def g_casadi(self, X):
         return self.robot.g(X, casadi=True)
 
-    def nominal_input(self, goal, d_min=0.05, k_omega = 2.0, k_a = 1.0, k_v = 1.0):
+    def nominal_input(self, goal, d_min=0.05, k_omega = 2.0, k_a = 1.0, k_v = 1.0, k_p = 1.0, k_d = 1.0):
         if self.robot_spec['model'] == 'Unicycle2D':
             return self.robot.nominal_input(self.X, goal, d_min, k_omega, k_v)
         elif self.robot_spec['model'] == 'DynamicUnicycle2D':
@@ -181,7 +181,7 @@ class BaseRobot:
         elif self.robot_spec['model'] == 'DoubleIntegrator2D':
             return self.robot.nominal_input(self.X, goal, d_min, k_v, k_a)
         elif self.robot_spec['model'] == 'Quad3D':
-            return self.robot.nominal_input(self.X, goal, k_a, k_v)
+            return self.robot.nominal_input(self.X, goal)
 
     def nominal_attitude_input(self, theta_des):
         if self.robot_spec['model'] == 'DoubleIntegrator2D':

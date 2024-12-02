@@ -83,7 +83,7 @@ class LocalTrackingController:
             if 'psi_dot_max' not in self.robot_spec:
                 self.robot_spec['psi_dot_max'] = 1.0
             if 'f_max' not in self.robot_spec:
-                self.robot_spec['f_max'] = 10.0
+                self.robot_spec['f_max'] = 20,0
             if X0.shape[0] == 3:
                 X0 = np.array([X0[0], X0[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, X0[2]]).reshape(-1, 1)
             elif X0.shape[0] == 2:
@@ -412,12 +412,16 @@ class LocalTrackingController:
         control_ref = {'state_machine': self.state_machine,
                        'u_ref': u_ref,
                        'goal': self.goal}
+        print("u_ref")
+        print(u_ref)
         if self.control_type == 'optimal_decay_cbf_qp' or self.control_type == 'cbf_qp':
             u = self.pos_controller.solve_control_problem(
                 self.robot.X, control_ref, self.nearest_obs)
         else:
-            u = self.pos_controller.solve_control_problem(
-                self.robot.X, control_ref, self.nearest_multi_obs)
+            
+            u = u_ref
+            # u = self.pos_controller.solve_control_problem(
+            #     self.robot.X, control_ref, self.nearest_multi_obs)
 
         # 5. Raise an error if the QP is infeasible, or the robot collides with the obstacle
         collide = self.is_collide_unknown()
@@ -520,10 +524,10 @@ def single_agent_main(control_type):
     # ]
     waypoints = [
         [2, 2, 0, math.pi/2],
-        [2, 12, 0, 0],
-        [12, 12, 0, 0],
+        [2, 12, 1, 0],
+        [12, 12, 4, 0],
         [12, 2, 0, 0]
-    ]
+        ]
     waypoints = np.array(waypoints, dtype=np.float64)
     # x_init = np.append(waypoints[0], 1.0)
     x_init = np.array(waypoints[0])
@@ -531,6 +535,7 @@ def single_agent_main(control_type):
     known_obs = np.array([[2.2, 5.0, 0.2], [3.0, 5.0, 0.2], [4.0, 9.0, 0.3], [1.5, 10.0, 0.5], [9.0, 11.0, 1.0], [7.0, 7.0, 3.0], [4.0, 3.5, 1.5],
                             [10.0, 7.3, 0.4],
                             [6.0, 13.0, 0.7], [5.0, 10.0, 0.6], [11.0, 5.0, 0.8], [13.5, 11.0, 0.6]])
+    known_obs = np.array([])
     
     plot_handler = plotting.Plotting(known_obs=known_obs)
     ax, fig = plot_handler.plot_grid("") # you can set the title of the plot here
@@ -547,7 +552,7 @@ def single_agent_main(control_type):
 
     robot_spec = {
         'model': 'Quad3D',
-        'f_max': 20,
+        'f_max': 40.0,
         'phi_dot_max':5,
         'theta_dot_max':5,
         'psi_dot_max':5,
@@ -648,8 +653,8 @@ if __name__ == "__main__":
     from utils import env
     import math
 
-    single_agent_main('mpc_cbf')
+    # single_agent_main('mpc_cbf')
     #multi_agent_main('mpc_cbf', save_animation=True)
-    # single_agent_main('cbf_qp')
+    single_agent_main('cbf_qp')
     # single_agent_main('optimal_decay_cbf_qp')
     #single_agent_main('optimal_decay_mpc_cbf')
