@@ -419,9 +419,9 @@ class LocalTrackingController:
                 self.robot.X, control_ref, self.nearest_obs)
         else:
             
-            u = u_ref
-            # u = self.pos_controller.solve_control_problem(
-            #     self.robot.X, control_ref, self.nearest_multi_obs)
+            # u = u_ref
+            u = self.pos_controller.solve_control_problem(
+                self.robot.X, control_ref, self.nearest_multi_obs)
 
         # 5. Raise an error if the QP is infeasible, or the robot collides with the obstacle
         collide = self.is_collide_unknown()
@@ -535,7 +535,7 @@ def single_agent_main(control_type):
     known_obs = np.array([[2.2, 5.0, 0.2], [3.0, 5.0, 0.2], [4.0, 9.0, 0.3], [1.5, 10.0, 0.5], [9.0, 11.0, 1.0], [7.0, 7.0, 3.0], [4.0, 3.5, 1.5],
                             [10.0, 7.3, 0.4],
                             [6.0, 13.0, 0.7], [5.0, 10.0, 0.6], [11.0, 5.0, 0.8], [13.5, 11.0, 0.6]])
-    known_obs = np.array([])
+    # known_obs = np.array([])
     
     plot_handler = plotting.Plotting(known_obs=known_obs)
     ax, fig = plot_handler.plot_grid("") # you can set the title of the plot here
