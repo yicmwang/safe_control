@@ -103,10 +103,12 @@ class Quad3D:
             return g
     def step(self, X, U): 
         X = X + ( self.f(X) + self.g(X) @ U )*self.dt
-        X[2,0] = angle_normalize(X[2,0])
+        X[6,0] = angle_normalize(X[6,0])
+        X[7,0] = angle_normalize(X[7,0])
+        X[8,0] = angle_normalize(X[8,0])
         return X
 
-    def nominal_input(self, X, goal, k_p = 1, k_d = 2, k_ang = 2.0):
+    def nominal_input(self, X, goal, k_p = 1, k_d = 2, k_ang = 5):
         '''
         nominal input for CBF-QP
         '''
@@ -121,7 +123,7 @@ class Quad3D:
         x_err = np.atleast_2d(goal[0:3]).T - X[0:3]
         v_err = 0 - X[3:6]
         F_des = x_err * k_p + v_err * k_d + np.array([0, 0, - self.gravity * self.m]).reshape(-1,1) #proportional control & gravity compensation
-        u_nom[0] = min(np.linalg.norm(F_des), f_max)
+        u_nom[0] = max(min(np.linalg.norm(F_des), f_max), -f_max)
         a_des = F_des / np.linalg.norm(F_des)
         theta_des = np.arcsin(-1 * a_des[0])
         psi_des = np.arctan2(x_err[1], x_err[0])
@@ -132,16 +134,16 @@ class Quad3D:
             phi_des = np.arcsin(a_des[1] / np.cos(theta_des))
         except RuntimeWarning:
             phi_des = np.arccos(a_des[2] / np.cos(theta_des))
-        u_nom[1] = min((phi_des - X[6]) * k_ang, phi_dot_max)
-        u_nom[2] = min((theta_des - X[7]) * k_ang, theta_dot_max)
-        u_nom[3] = min((psi_des - X[8]) * k_ang, psi_dot_max)
+        u_nom[1] = max(min((phi_des - X[6]) * k_ang, phi_dot_max), -phi_dot_max)
+        u_nom[2] = max(min((theta_des - X[7]) * k_ang, theta_dot_max), -theta_dot_max)
+        u_nom[3] = max(min((psi_des - X[8]) * k_ang, psi_dot_max), -psi_dot_max)
         return u_nom
     
     def stop(self, X, k_stop = 1):
         u_stop = np.zeros(4)
 
         v_curr = X[3:6]
-        F_des = v_curr * k_stop + np.array([0, 0, self.gravity * self.m]).reshape(-1,1) #proportional control & gravity compensation
+        F_des = v_curr * k_stop + np.array([0, 0, - self.gravity * self.m]).reshape(-1,1) #proportional control & gravity compensation
         u_stop[0] = np.linalg.norm(F_des)
         a_des = F_des / u_stop[0]
         theta_des = np.arcsin(-1 * a_des[0])
@@ -167,7 +169,7 @@ class Quad3D:
     
     def agent_barrier(self, X, obs, robot_radius, beta=1.01):
         '''obs: [x, y, r]'''
-        '''obstacles are infinite cylinders at x and y'''
+        '''obstacles are infinite cylinders at x and y with radius r, extending in z direction'''
         '''X : [x y z vx vy yz phi theta psi]'''
         obsX = obs[0:2]
         d_min = obs[2][0] + robot_radius  # obs radius + robot radius

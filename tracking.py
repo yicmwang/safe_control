@@ -198,7 +198,10 @@ class LocalTrackingController:
         return aug_waypoints[mask]
 
     def goal_reached(self, current_position, goal_position):
-        return np.linalg.norm(current_position[:2] - goal_position[:2]) < self.reached_threshold
+        if goal_position.size == 3:
+            return np.linalg.norm(current_position[:2] - goal_position[:2]) < self.reached_threshold
+        if goal_position.size == 4:
+            return np.linalg.norm(current_position[:3] - goal_position[:3]) < self.reached_threshold
 
     def has_reached_goal(self):
         # return whethere the self.goal is None or not
@@ -388,8 +391,8 @@ class LocalTrackingController:
             self.nearest_obs = None
 
         # 2. Compuite nominal control input, pre-defined in the robot class
-        print("state machine")
-        print(self.state_machine)
+        # print("state machine")
+        # print(self.state_machine)
         if self.state_machine == 'rotate':
             goal_angle = np.arctan2(self.goal[1] - self.robot.X[1, 0],
                                     self.goal[0] - self.robot.X[0, 0])
@@ -412,8 +415,8 @@ class LocalTrackingController:
         control_ref = {'state_machine': self.state_machine,
                        'u_ref': u_ref,
                        'goal': self.goal}
-        print("u_ref")
-        print(u_ref)
+        # print("u_ref")
+        # print(u_ref)
         if self.control_type == 'optimal_decay_cbf_qp' or self.control_type == 'cbf_qp':
             u = self.pos_controller.solve_control_problem(
                 self.robot.X, control_ref, self.nearest_obs)
@@ -524,18 +527,19 @@ def single_agent_main(control_type):
     # ]
     waypoints = [
         [2, 2, 0, math.pi/2],
-        [2, 12, 1, 0],
-        [12, 12, 4, 0],
-        [12, 2, 0, 0]
+        [2, 12, 4, 0],
+        [12, 12, -4, 0],
+        [12, 2, -1, 0]
         ]
     waypoints = np.array(waypoints, dtype=np.float64)
     # x_init = np.append(waypoints[0], 1.0)
     x_init = np.array(waypoints[0])
     
-    known_obs = np.array([[2.2, 5.0, 0.2], [3.0, 5.0, 0.2], [4.0, 9.0, 0.3], [1.5, 10.0, 0.5], [9.0, 11.0, 1.0], [7.0, 7.0, 3.0], [4.0, 3.5, 1.5],
-                            [10.0, 7.3, 0.4],
-                            [6.0, 13.0, 0.7], [5.0, 10.0, 0.6], [11.0, 5.0, 0.8], [13.5, 11.0, 0.6]])
-    # known_obs = np.array([])
+    # known_obs = np.array([[2.2, 5.0, 0.2], [3.0, 5.0, 0.2], [4.0, 9.0, 0.3], [1.5, 10.0, 0.5], [9.0, 11.0, 1.0], [7.0, 7.0, 3.0], [4.0, 3.5, 1.5],
+    #                         [10.0, 7.3, 0.4],
+    #                         [6.0, 13.0, 0.7], [5.0, 10.0, 0.6], [11.0, 5.0, 0.8], [13.5, 11.0, 0.6]])
+    # known_obs = np.array([[10, 12, .1]])
+    known_obs = np.array([])
     
     plot_handler = plotting.Plotting(known_obs=known_obs)
     ax, fig = plot_handler.plot_grid("") # you can set the title of the plot here
@@ -552,7 +556,7 @@ def single_agent_main(control_type):
 
     robot_spec = {
         'model': 'Quad3D',
-        'f_max': 40.0,
+        'f_max': 500.0,
         'phi_dot_max':5,
         'theta_dot_max':5,
         'psi_dot_max':5,
@@ -653,8 +657,8 @@ if __name__ == "__main__":
     from utils import env
     import math
 
-    # single_agent_main('mpc_cbf')
+    single_agent_main('mpc_cbf')
     #multi_agent_main('mpc_cbf', save_animation=True)
-    single_agent_main('cbf_qp')
+    # single_agent_main('cbf_qp')
     # single_agent_main('optimal_decay_cbf_qp')
     #single_agent_main('optimal_decay_mpc_cbf')
